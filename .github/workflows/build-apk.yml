@@ -25,6 +25,11 @@ jobs:
 
       - name: Install Dependencies
         run: npm install
+      
+      - name: Copy Node.js Assets
+        run: |
+          mkdir -p android/app/src/main/assets/nodejs-project
+          cp -r nodejs-assets/nodejs-project/* android/app/src/main/assets/nodejs-project/
 
       - name: Generate React Native Bundle
         run: |
