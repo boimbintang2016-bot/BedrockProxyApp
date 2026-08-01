@@ -1,0 +1,131 @@
+diff --git a/node_modules/nodejs-mobile-react-native/android/build.gradle b/node_modules/nodejs-mobile-react-native/android/build.gradle
+index 14be607..b22d68e 100644
+--- a/node_modules/nodejs-mobile-react-native/android/build.gradle
++++ b/node_modules/nodejs-mobile-react-native/android/build.gradle
+@@ -1,4 +1,3 @@
+-
+ buildscript {
+     repositories {
+         mavenCentral()
+@@ -191,7 +190,7 @@ if ("1".equals(shouldRebuildNativeModules)) {
+         // helper scripts that are created when the plugin is installed to run npm and node with the PATH members that
+         // were available during the plugin's install.
+         try {
+-            def commandResult = exec {
++            def commandResult = project.exec {
+                 commandLine 'command', '-v', 'npm'
+                 ignoreExitValue = true
+             }
+@@ -200,7 +199,7 @@ if ("1".equals(shouldRebuildNativeModules)) {
+                 logger.warn("Couldn't find npm in the PATH for building native modules. Will try to use a helper script.");
+                 npmCommandName = '../build-native-modules-MacOS-helper-script-npm.sh';
+             }
+-            commandResult = exec {
++            commandResult = project.exec {
+                 commandLine 'command', '-v', 'node'
+                 ignoreExitValue = true
+             }
+@@ -351,7 +350,7 @@ if ("1".equals(shouldRebuildNativeModules)) {
+                         into "${rootProject.buildDir}/nodejs-native-assets-temp-build/nodejs-native-assets-${abi_name}/"
+                     }
+                 }
+-                exec {
++                project.exec {
+                     workingDir "${rootProject.buildDir}/nodejs-native-assets-temp-build/nodejs-native-assets-${abi_name}/nodejs-project/"
+                     commandLine nodeCommandName, "${project.projectDir}/../scripts/patch-package.js", "${rootProject.buildDir}/nodejs-native-assets-temp-build/nodejs-native-assets-${abi_name}/nodejs-project/node_modules/"
+                 }
+@@ -388,7 +387,7 @@ if ("1".equals(shouldRebuildNativeModules)) {
+                         from "${dotNode.getAbsoluteFile()}"
+                         into "${moduleRoot}/build/Release/"
+                     }
+-                    exec {
++                    project.exec {
+                         workingDir moduleRoot
+                         commandLine 'sed', '-i.bak', 's/"install"/"dontinstall"/g; s/"rebuild"/"dontrebuild"/g; s/"gypfile"/"dontgypfile"/g', 'package.json'
+                     }
+@@ -402,7 +401,7 @@ if ("1".equals(shouldRebuildNativeModules)) {
+             dependsOn "DetectCorrectPrebuilds${abi_name}"
+             description = "Building native modules for ${abi_name}."
+             def nodeVersionStdout = new ByteArrayOutputStream()
+-            def nodeVersionResult = exec {
++            def nodeVersionResult = project.exec {
+                 commandLine 'node', '-p', 'process.versions.node.split(".")[0]'
+                 standardOutput = nodeVersionStdout
+             }
+@@ -426,75 +425,4 @@ if ("1".equals(shouldRebuildNativeModules)) {
+             environment ('npm_config_node_engine', 'v8' )
+             environment ('npm_config_nodedir', "${project.projectDir}/libnode/" )
+             environment ('npm_config_node_gyp', npm_gyp_path_to_use )
+-            environment ('npm_config_arch', temp_arch)
+-            environment ('npm_config_platform', 'android')
+-            environment ('npm_config_format', 'make-android')
+-            environment ('PROJECT_DIR', "${rootProject.projectDir}")
+-            environment ('NODEJS_MOBILE_GYP', npm_gyp_path_to_use)
+-
+-            // Adds the original project .bin to the path. It's a workaround
+-            // to correctly build some modules that depend on symlinked modules,
+-            // like node-pre-gyp.
+-            String original_project_bin = "${rootProject.projectDir}/../nodejs-assets/nodejs-project/node_modules/.bin";
+-            if(file(original_project_bin).exists()) {
+-                environment ('PATH', "${original_project_bin}" + System.getProperty("path.separator") + "${System.env.PATH}")
+-            }
+-
+-            environment ('CARGO_BUILD_TARGET', "${cargo_build_target}")
+-            environment ("CARGO_TARGET_${cargo_target_triple}_AR", "${npm_toolchain_ar}")
+-            environment ("CARGO_TARGET_${cargo_target_triple}_LINKER", "${npm_toolchain_link}")
+-
+-            environment ('TOOLCHAIN', "${toolchain_path}")
+-            environment ('AR', "${npm_toolchain_ar}")
+-            environment ('CC', "${npm_toolchain_cc}")
+-            environment ('CXX', "${npm_toolchain_cxx}")
+-            environment ('LINK', "${npm_toolchain_link}")
+-            environment ('RANLIB', "${npm_toolchain_ranlib}")
+-            environment ('GYP_DEFINES', "${npm_gyp_defines}")
+-
+-            commandLine npmCommandName, '--verbose', '--foreground-scripts', 'rebuild', '--build-from-source'
+-        }
+-
+-        task "CopyBuiltNpmAssets${abi_name}" (type:Sync) {
+-            dependsOn "BuildNpmModules${abi_name}"
+-            description = "Copying node assets with build native modules for ${abi_name}."
+-            from "${rootProject.buildDir}/nodejs-native-assets-temp-build/nodejs-native-assets-${abi_name}/nodejs-project/"
+-            into "${rootProject.buildDir}/nodejs-native-assets/nodejs-native-assets-${abi_name}/"
+-            includeEmptyDirs = false
+-            include '**/*.node'
+-        }
+-
+-        task "GenerateNodeNativeAssetsLists${abi_name}" {
+-            dependsOn "CopyBuiltNpmAssets${abi_name}"
+-            description "Generates a list for runtime copying"
+-            inputs.dir "${rootProject.buildDir}/nodejs-native-assets/nodejs-native-assets-${abi_name}/"
+-            outputs.file "${rootProject.buildDir}/nodejs-native-assets/nodejs-native-assets-${abi_name}/file.list"
+-            outputs.file "${rootProject.buildDir}/nodejs-native-assets/nodejs-native-assets-${abi_name}/dir.list"
+-            doLast{
+-                if(!(new File("${rootProject.buildDir}/nodejs-native-assets/nodejs-native-assets-${abi_name}/")).exists()) {
+-                    // If the native assets folder doesn't exist from the copy task, skip the creation of the file.list
+-                    return;
+-                }
+-                delete "${rootProject.buildDir}/nodejs-native-assets/nodejs-native-assets-${abi_name}/file.list"
+-                delete "${rootProject.buildDir}/nodejs-native-assets/nodejs-native-assets-${abi_name}/dir.list"
+-                String file_list = "";
+-                String dir_list = "";
+-
+-                def assets_tree = fileTree(dir: "${rootProject.buildDir}/nodejs-native-assets/nodejs-native-assets-${abi_name}/" )
+-                assets_tree.visit { assetFile ->
+-                    if (assetFile.isDirectory()) {
+-                    dir_list+="${assetFile.relativePath}\n"
+-                    } else {
+-                    file_list+="${assetFile.relativePath}\n"
+-                    }
+-                }
+-                def file_list_path = new File( "${rootProject.buildDir}/nodejs-native-assets/nodejs-native-assets-${abi_name}/file.list")
+-                file_list_path.write file_list
+-                def dir_list_path = new File( "${rootProject.buildDir}/nodejs-native-assets/nodejs-native-assets-${abi_name}/dir.list")
+-                dir_list_path.write dir_list
+-            }
+-        }
+-        tasks.getByPath(":${project.name}:preBuild").dependsOn "GenerateNodeNativeAssetsLists${abi_name}"
+-    }
+-    project.android.sourceSets.main.assets.srcDirs+="${rootProject.buildDir}/nodejs-native-assets/"
+-}
++            environment ('npm_config_arch'
