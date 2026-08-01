@@ -8,6 +8,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -23,25 +24,37 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install Dependencies
+      # 1. Install dependencies utama React Native (Root UI)
+      - name: Install Root Dependencies
         run: npm install
-      
+
+      # 2. Install dependencies backend Node.js (bedrock-protocol, prismarine-auth, dll)
+      - name: Install Node.js Project Dependencies
+        run: |
+          cd nodejs-assets/nodejs-project
+          npm install --omit=dev
+          cd ../..
+
+      # 3. Salin folder backend (termasuk node_modules-nya) ke folder assets Android
       - name: Copy Node.js Assets
         run: |
           mkdir -p android/app/src/main/assets/nodejs-project
           cp -r nodejs-assets/nodejs-project/* android/app/src/main/assets/nodejs-project/
 
+      # 4. Generate Bundle React Native UI
       - name: Generate React Native Bundle
         run: |
           mkdir -p android/app/src/main/assets
           npx react-native bundle --platform android --dev false --entry-file index.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res
 
+      # 5. Build APK menggunakan Gradle
       - name: Build APK with Gradle
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --stacktrace
 
+      # 6. Upload hasil APK ke GitHub Artifacts
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:

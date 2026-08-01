@@ -8,8 +8,9 @@
   "description": "node part of the project",
   "main": "main.js",
   "author": "janeasystems",
-  "license": "",
+  "license": "MIT",
   "dependencies": {
-    "bedrock-protocol": "^3.57.0"
+    "bedrock-protocol": "^3.57.0",
+    "prismarine-auth": "^3.1.1"
   }
 }
